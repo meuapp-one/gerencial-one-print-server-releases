@@ -46,14 +46,33 @@ curl -fsSL https://ps.gerencial.one/instalar.sh | sudo GOPS_VERSAO=0.2.1 sh
 $env:GOPS_VERSAO = '0.2.1'; irm https://ps.gerencial.one/instalar.ps1 | iex
 ```
 
-## Pareamento
+## Conectar a estação
 
-Depois da instalação, o Print Server mostra um código de pareamento (`XXXX-XXXX`):
+O instalador só instala e inicia o serviço: ele **não** faz o pareamento. Sem estação conectada, o serviço fica aguardando, sem imprimir nada. Para conectar a estação ao Gerencial One, rode o comando `conectar` (como administrador):
 
-- **Windows:** rode, como administrador, `& "C:\Program Files\GerencialOnePrintServer\gerencial-one-print-server.exe" status`.
-- **Linux:** rode `sudo gerencial-one-print-server status` ou veja os logs com `gerencial-one-print-server logs`. Com uma impressora USB ligada, o código também sai impresso no papel, com um QR.
+- **Windows** (PowerShell como administrador):
+
+  ```powershell
+  & "C:\Program Files\GerencialOnePrintServer\gerencial-one-print-server.exe" conectar
+  ```
+
+- **Linux:**
+
+  ```sh
+  sudo gerencial-one-print-server conectar
+  ```
+
+Sem opção, `conectar` usa o ambiente de **produção**. Para o ambiente de **desenvolvimento** (testes), acrescente `--dev` (`conectar --dev`). O comando grava o ambiente, descarta a credencial anterior (ela só vale no ambiente em que foi criada), reinicia o serviço e mostra no terminal o **código de pareamento** (`XXXX-XXXX`) e o **QR code** até a estação ser aprovada. Termina com `Conectado a <URL> (produção)` ou `(desenvolvimento)`. Ctrl+C só para de acompanhar: o serviço continua pareando, e o código pode ser visto depois com `status`. Com uma impressora USB ligada no Linux, o código também sai impresso no papel, com um QR.
 
 No Gerencial One, um administrador abre **Configuração → Impressão**, informa o código e dá um nome à estação. Em seguida, cadastra as impressoras dessa estação. **Procurar impressoras** lista as encontradas no computador e na rede.
+
+### Trocar de ambiente
+
+Numa máquina já instalada, rode `conectar` de novo com o outro ambiente (`conectar --dev` ou `conectar`/`conectar --prod`). Não precisa reinstalar: o comando troca o ambiente, descarta a credencial e pareia a estação outra vez, que precisa ser aprovada no Gerencial One do novo ambiente.
+
+### Estações instaladas antes do `conectar`
+
+Uma estação já pareada continua funcionando como **produção**, sem rodar nada. Se a estação for revogada no Gerencial One, o serviço passa a aguardar (mesmo depois de reiniciar), e é preciso rodar `conectar`: só ele autoriza um novo pareamento.
 
 ## Conexões das impressoras
 
@@ -61,18 +80,142 @@ No Gerencial One, um administrador abre **Configuração → Impressão**, infor
 - **USB no Windows:** pelo spooler. Instale a impressora no Windows, com o driver do fabricante ou o "Generic / Text Only", e cadastre o nome exato que aparece em Impressoras e scanners.
 - **USB no Linux:** o dispositivo `/dev/usb/lp0` (ou `lp1`, …).
 - **Bluetooth no Windows:** pareie a impressora nas Configurações do Windows e crie a porta COM de saída (Bluetooth e dispositivos → Mais configurações de Bluetooth → Portas COM → Adicionar → Saída). Cadastre como serial, com a porta criada (ex.: `COM5`).
-- **Bluetooth no Linux:** instale com `--bluetooth` e escolha a impressora em **Procurar impressoras**.
+- **Bluetooth no Linux:** instale com `install --bluetooth` e escolha a impressora em **Procurar impressoras**.
 
-## Comandos úteis
+## Referência de comandos
 
-| O quê | Windows (PowerShell como administrador) | Linux |
-|---|---|---|
-| Situação do serviço, da estação e das impressoras | `& "C:\Program Files\GerencialOnePrintServer\gerencial-one-print-server.exe" status` | `sudo gerencial-one-print-server status` |
-| Acompanhar os logs | `… gerencial-one-print-server.exe logs` | `gerencial-one-print-server logs` |
-| Procurar impressoras | `… gerencial-one-print-server.exe scan` | `sudo gerencial-one-print-server scan` |
-| Diagnóstico | — | `sudo gerencial-one-print-server doctor` |
-| Desinstalar (mantém a credencial) | `… gerencial-one-print-server.exe uninstall` | `sudo gerencial-one-print-server uninstall` |
-| Desinstalar e apagar tudo | `… gerencial-one-print-server.exe uninstall --purge` | `sudo gerencial-one-print-server uninstall --purge` |
+Forma geral: `gerencial-one-print-server <comando> [opções]`. No Linux o programa fica no `PATH` (`/usr/local/bin`); no Windows, rode-o pelo caminho completo em um PowerShell **como administrador**, e nos exemplos abaixo `$exe` é:
+
+```powershell
+$exe = "C:\Program Files\GerencialOnePrintServer\gerencial-one-print-server.exe"
+```
+
+Opções gerais, valem para o programa e para qualquer comando: `--help` (`-h`) mostra a ajuda e `--version` (`-V`, só no programa) mostra a versão.
+
+| Comando | O que faz | Exige administrador/root | Linux | Windows |
+|---|---|---|---|---|
+| `run` | Executa o serviço em primeiro plano; é o que o systemd e o Windows Service chamam | não (o serviço roda pelo gerenciador) | sim | sim |
+| `conectar` | Conecta a estação ao Gerencial One e mostra o código e o QR de pareamento | sim | sim | sim |
+| `install` | Instala e inicia o serviço (não pareia) | sim | sim | sim |
+| `uninstall` | Remove o serviço | sim | sim | sim |
+| `status` | Mostra o serviço, o ambiente, a estação, o último contato e as impressoras | para ler a credencial e o código de pareamento | sim | sim |
+| `logs` | Acompanha os logs (Ctrl+C sai) | no Windows, para ler os logs; no Linux, root ou o grupo `systemd-journal` | sim | sim |
+| `scan` | Procura impressoras acessíveis a esta máquina | não (no Linux, `sudo` ajuda a enxergar USB e serial) | sim | sim |
+| `doctor` | Diagnostica o ambiente e sugere correções | para ler a configuração | sim | não disponível |
+
+Nota: existe também um comando interno e oculto, `aplicar-atualizacao`, chamado pelo serviço no Linux para aplicar uma atualização; não é de uso manual.
+
+#### `run`
+
+Executa o serviço até receber um sinal (Ctrl+C ou parada do serviço). Sem estação conectada, só registra no log que aguarda o `conectar`. Normalmente você não o chama: o serviço instalado já faz isso.
+
+#### `conectar`
+
+Conecta (ou reconecta) a estação. Exige administrador/root e o serviço instalado.
+
+- `conectar`: ambiente de produção (o padrão).
+- `conectar --prod`: o mesmo, explícito.
+- `conectar --dev`: ambiente de desenvolvimento (testes).
+
+`--dev` e `--prod` não podem ser usados juntos. Se o executável instalado não tiver a URL de produção, `conectar` avisa e não altera nada; use `--dev`.
+
+```sh
+sudo gerencial-one-print-server conectar
+sudo gerencial-one-print-server conectar --dev
+```
+
+```powershell
+& $exe conectar
+& $exe conectar --dev
+```
+
+#### `install`
+
+Instala o serviço, cria o usuário e as pastas, e o inicia. Pode ser repetido com segurança: atualiza o executável e mantém a credencial. Não faz o pareamento; rode `conectar` depois.
+
+- `install --bluetooth`: instala o BlueZ (impressoras Bluetooth) sem perguntar. **Só no Linux**; no Windows a opção é ignorada com um aviso, e o Bluetooth é pareado nas Configurações do Windows.
+
+```sh
+sudo gerencial-one-print-server install
+sudo gerencial-one-print-server install --bluetooth
+```
+
+```powershell
+& $exe install
+```
+
+#### `uninstall`
+
+Remove o serviço e o executável. A credencial e a configuração só são apagadas com confirmação ou com `--purge`.
+
+- `uninstall --purge`: apaga também a credencial, a configuração e (no Windows) os logs, sem perguntar.
+
+```sh
+sudo gerencial-one-print-server uninstall
+sudo gerencial-one-print-server uninstall --purge
+```
+
+```powershell
+& $exe uninstall
+& $exe uninstall --purge
+```
+
+#### `status`
+
+Mostra a versão, a situação do serviço, o ambiente (`produção`, `desenvolvimento` ou `personalizado`) e a URL, a estação (ou `aguardando conectar`, ou `pareamento em andamento` com o código), o último contato e as impressoras configuradas. Sem permissão para ler a configuração, mostra o que pode e pede administrador/root.
+
+```sh
+sudo gerencial-one-print-server status
+```
+
+```powershell
+& $exe status
+```
+
+#### `logs`
+
+Mostra o fim dos logs e continua acompanhando. No Linux segue o journal do systemd, o que exige root (`sudo`) ou pertencer ao grupo `systemd-journal`; no Windows, o arquivo de log mais recente, lido em um terminal de administrador.
+
+```sh
+sudo gerencial-one-print-server logs
+```
+
+```powershell
+& $exe logs
+```
+
+#### `scan`
+
+Procura impressoras acessíveis a esta máquina (rede, USB, serial e Bluetooth; no Windows, o spooler e as portas COM). Leva cerca de 10 segundos. Não exige administrador, mas no Linux o `sudo` ajuda: sem ele, `/dev/usb/lp*` e as portas seriais podem não ser acessíveis ao seu usuário e deixar de aparecer.
+
+```sh
+sudo gerencial-one-print-server scan
+```
+
+```powershell
+& $exe scan
+```
+
+#### `doctor`
+
+Diagnóstico: confere o serviço, a credencial, os grupos do usuário de serviço, as permissões dos dispositivos, o BlueZ, o relógio, o acesso ao Gerencial One e conflitos com CUPS e ModemManager, com a correção sugerida para cada problema. **Só no Linux**; no Windows responde que não está disponível (use `status`, `logs` e `scan`).
+
+```sh
+sudo gerencial-one-print-server doctor
+```
+
+#### Opções gerais
+
+```sh
+gerencial-one-print-server --version
+gerencial-one-print-server --help
+gerencial-one-print-server conectar --help
+```
+
+```powershell
+& $exe --version
+& $exe --help
+```
 
 Rodar o instalador de novo é seguro: ele atualiza o executável e mantém a credencial e o pareamento.
 
