@@ -39,11 +39,11 @@ O instalador baixa o binário do seu processador, confere o sha256 e instala o s
 Para instalar uma versão diferente da mais recente, informe-a antes do comando:
 
 ```sh
-curl -fsSL https://ps.gerencial.one/instalar.sh | sudo GOPS_VERSAO=0.2.1 sh
+curl -fsSL https://ps.gerencial.one/instalar.sh | sudo GOPS_VERSAO=0.2.3 sh
 ```
 
 ```powershell
-$env:GOPS_VERSAO = '0.2.1'; irm https://ps.gerencial.one/instalar.ps1 | iex
+$env:GOPS_VERSAO = '0.2.3'; irm https://ps.gerencial.one/instalar.ps1 | iex
 ```
 
 ## Conectar a estação
@@ -53,13 +53,13 @@ O instalador só instala e inicia o serviço: ele **não** faz o pareamento. Sem
 - **Windows** (PowerShell como administrador):
 
   ```powershell
-  & "C:\Program Files\GerencialOnePrintServer\gerencial-one-print-server.exe" conectar
+  gerencial-one-ps conectar
   ```
 
 - **Linux:**
 
   ```sh
-  sudo gerencial-one-print-server conectar
+  sudo gerencial-one-ps conectar
   ```
 
 Sem opção, `conectar` usa o ambiente de **produção**. Para o ambiente de **desenvolvimento** (testes), acrescente `--dev` (`conectar --dev`). O comando grava o ambiente, descarta a credencial anterior (ela só vale no ambiente em que foi criada), reinicia o serviço e mostra no terminal o **código de pareamento** (`XXXX-XXXX`) e o **QR code** até a estação ser aprovada. Termina com `Conectado a <URL> (produção)` ou `(desenvolvimento)`. Ctrl+C só para de acompanhar: o serviço continua pareando, e o código pode ser visto depois com `status`. Com uma impressora USB ligada no Linux, o código também sai impresso no papel, com um QR.
@@ -84,11 +84,13 @@ Uma estação já pareada continua funcionando como **produção**, sem rodar na
 
 ## Referência de comandos
 
-Forma geral: `gerencial-one-print-server <comando> [opções]`. No Linux o programa fica no `PATH` (`/usr/local/bin`); no Windows, rode-o pelo caminho completo em um PowerShell **como administrador**, e nos exemplos abaixo `$exe` é:
+Forma geral: `gerencial-one-ps <comando> [opções]`. No Linux o programa fica em `/usr/local/bin` e, no Windows, o `install` põe `C:\Program Files\GerencialOnePrintServer` no `PATH` do sistema: depois da instalação, **abra um novo terminal** e rode `gerencial-one-ps` de qualquer pasta. Nos exemplos abaixo, `$exe` é o comando (no Windows, em um PowerShell **como administrador**):
 
 ```powershell
-$exe = "C:\Program Files\GerencialOnePrintServer\gerencial-one-print-server.exe"
+$exe = "gerencial-one-ps"
 ```
+
+Estações que já tinham o nome antigo (`gerencial-one-print-server`) passam ao nome novo sozinhas na primeira atualização automática (no Linux o nome antigo continua funcionando como atalho). Em estação migrada pela auto-atualização, o serviço (sessão 0) não consegue avisar o Explorer do usuário: o comando `gerencial-one-ps` fica disponível no terminal depois de sair e entrar na sessão do Windows ou reiniciar a estação (ou de rodar `install` de novo, em um PowerShell de administrador). O serviço grava o `PATH` só nessa migração, uma vez, para não recolocar uma entrada que um administrador tenha removido de propósito.
 
 Opções gerais, valem para o programa e para qualquer comando: `--help` (`-h`) mostra a ajuda e `--version` (`-V`, só no programa) mostra a versão.
 
@@ -120,8 +122,8 @@ Conecta (ou reconecta) a estação. Exige administrador/root e o serviço instal
 `--dev` e `--prod` não podem ser usados juntos. Se o executável instalado não tiver a URL de produção, `conectar` avisa e não altera nada; use `--dev`.
 
 ```sh
-sudo gerencial-one-print-server conectar
-sudo gerencial-one-print-server conectar --dev
+sudo gerencial-one-ps conectar
+sudo gerencial-one-ps conectar --dev
 ```
 
 ```powershell
@@ -136,8 +138,8 @@ Instala o serviço, cria o usuário e as pastas, e o inicia. Pode ser repetido c
 - `install --bluetooth`: instala o BlueZ (impressoras Bluetooth) sem perguntar. **Só no Linux**; no Windows a opção é ignorada com um aviso, e o Bluetooth é pareado nas Configurações do Windows.
 
 ```sh
-sudo gerencial-one-print-server install
-sudo gerencial-one-print-server install --bluetooth
+sudo gerencial-one-ps install
+sudo gerencial-one-ps install --bluetooth
 ```
 
 ```powershell
@@ -151,8 +153,8 @@ Remove o serviço e o executável. A credencial e a configuração só são apag
 - `uninstall --purge`: apaga também a credencial, a configuração e (no Windows) os logs, sem perguntar.
 
 ```sh
-sudo gerencial-one-print-server uninstall
-sudo gerencial-one-print-server uninstall --purge
+sudo gerencial-one-ps uninstall
+sudo gerencial-one-ps uninstall --purge
 ```
 
 ```powershell
@@ -165,7 +167,7 @@ sudo gerencial-one-print-server uninstall --purge
 Mostra a versão, a situação do serviço, o ambiente (`produção`, `desenvolvimento` ou `personalizado`) e a URL, a estação (ou `aguardando conectar`, ou `pareamento em andamento` com o código), o último contato e as impressoras configuradas. Sem permissão para ler a configuração, mostra o que pode e pede administrador/root.
 
 ```sh
-sudo gerencial-one-print-server status
+sudo gerencial-one-ps status
 ```
 
 ```powershell
@@ -177,7 +179,7 @@ sudo gerencial-one-print-server status
 Mostra o fim dos logs e continua acompanhando. No Linux segue o journal do systemd, o que exige root (`sudo`) ou pertencer ao grupo `systemd-journal`; no Windows, o arquivo de log mais recente, lido em um terminal de administrador.
 
 ```sh
-sudo gerencial-one-print-server logs
+sudo gerencial-one-ps logs
 ```
 
 ```powershell
@@ -189,7 +191,7 @@ sudo gerencial-one-print-server logs
 Procura impressoras acessíveis a esta máquina (rede, USB, serial e Bluetooth; no Windows, o spooler e as portas COM). Leva cerca de 10 segundos. Não exige administrador, mas no Linux o `sudo` ajuda: sem ele, `/dev/usb/lp*` e as portas seriais podem não ser acessíveis ao seu usuário e deixar de aparecer.
 
 ```sh
-sudo gerencial-one-print-server scan
+sudo gerencial-one-ps scan
 ```
 
 ```powershell
@@ -201,15 +203,15 @@ sudo gerencial-one-print-server scan
 Diagnóstico: confere o serviço, a credencial, os grupos do usuário de serviço, as permissões dos dispositivos, o BlueZ, o relógio, o acesso ao Gerencial One e conflitos com CUPS e ModemManager, com a correção sugerida para cada problema. **Só no Linux**; no Windows responde que não está disponível (use `status`, `logs` e `scan`).
 
 ```sh
-sudo gerencial-one-print-server doctor
+sudo gerencial-one-ps doctor
 ```
 
 #### Opções gerais
 
 ```sh
-gerencial-one-print-server --version
-gerencial-one-print-server --help
-gerencial-one-print-server conectar --help
+gerencial-one-ps --version
+gerencial-one-ps --help
+gerencial-one-ps conectar --help
 ```
 
 ```powershell
