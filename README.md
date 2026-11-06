@@ -105,7 +105,7 @@ Opções gerais, valem para o programa e para qualquer comando: `--help` (`-h`) 
 | `scan` | Procura impressoras acessíveis a esta máquina | não (no Linux, `sudo` ajuda a enxergar USB e serial) | sim | sim |
 | `doctor` | Diagnostica o ambiente e sugere correções | para ler a configuração | sim | não disponível |
 
-Nota: existe também um comando interno e oculto, `aplicar-atualizacao`, chamado pelo serviço no Linux para aplicar uma atualização; não é de uso manual.
+Nota: existe também um comando interno e oculto, `aplicar-atualizacao`, chamado no Linux pela unit `gerencial-one-print-server-atualizar.service` (disparada pela `.path`) para aplicar uma atualização; não é de uso manual.
 
 #### `run`
 
@@ -223,6 +223,18 @@ Rodar o instalador de novo é seguro: ele atualiza o executável e mantém a cre
 
 ## Atualização automática
 
-O Print Server se atualiza sozinho quando o Gerencial One libera uma versão nova. Ele baixa o manifesto da versão, confere a **assinatura ed25519** e o **sha256** do executável e só então faz a troca, sem interromper uma impressão em andamento. O serviço reinicia em seguida. Se algo falhar, a versão atual continua funcionando e a atualização é tentada de novo mais tarde.
+O Print Server se atualiza sozinho quando o Gerencial One libera uma versão nova. Ele baixa o manifesto da versão, confere a **assinatura ed25519** e o **sha256** do executável e só então faz a troca, sem interromper uma impressão em andamento. O serviço reinicia em seguida. No Linux, quem aplica é uma unit própria do systemd (`gerencial-one-print-server-atualizar.path`/`.service`), instalada pelo `install`. Se algo falhar, a versão atual continua funcionando e a atualização é tentada de novo mais tarde.
 
 Cada versão publica `manifesto.json` e `manifesto.json.sig`, além de um `.sha256` ao lado de cada executável. O Print Server só aceita manifestos assinados pela chave do Gerencial One, embutida no próprio executável.
+
+### Estações Linux até a 0.4.0: reinstalação única
+
+As estações Linux instaladas até a 0.4.0 têm a unit antiga (com `ExecStartPre`) e não conseguem aplicar atualizações, nem recebem as units novas sozinhas. Em cada uma, uma vez, baixe o binário novo e reinstale:
+
+```sh
+curl -fsSL https://ps.gerencial.one/instalar.sh | sudo sh
+# ou, com o binário novo já em mãos:
+sudo ./gerencial-one-ps install
+```
+
+O `install` reescreve a unit principal sem `ExecStartPre`, grava e habilita `gerencial-one-print-server-atualizar.path` e `.service`, faz `daemon-reload` e reinicia o serviço. A credencial e o pareamento são mantidos. Confira com `sudo gerencial-one-ps doctor` (item "atualização automática"). Depois disso, as atualizações voltam a ser automáticas.
