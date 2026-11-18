@@ -62,7 +62,7 @@ O instalador só instala e inicia o serviço: ele **não** faz o pareamento. Sem
   sudo gerencial-one-ps conectar
   ```
 
-Sem opção, `conectar` usa o ambiente de **produção**. Para o ambiente de **desenvolvimento** (testes), acrescente `--dev` (`conectar --dev`). O comando grava o ambiente, descarta a credencial anterior (ela só vale no ambiente em que foi criada), reinicia o serviço e mostra no terminal o **código de pareamento** (`XXXX-XXXX`) e o **QR code** até a estação ser aprovada. Termina com `Conectado a <URL> (produção)` ou `(desenvolvimento)`. Ctrl+C só para de acompanhar: o serviço continua pareando, e o código pode ser visto depois com `status`. Com uma impressora USB ligada no Linux, o código também sai impresso no papel, com um QR.
+Sem opção, `conectar` usa o ambiente de **produção**. Para o ambiente de **desenvolvimento** (testes), acrescente `--dev` (`conectar --dev`). O comando grava o ambiente, descarta a credencial anterior (ela só vale no ambiente em que foi criada), reinicia o serviço e mostra no terminal o **código de pareamento** (`XXXX-XXXX`) e o **QR code** até a estação ser aprovada. Termina com `Conectado a <URL> (produção)` ou `(desenvolvimento)`. Cada execução gera **um único código** (vale 10 minutos) e o serviço **não gera outro sozinho**: se o código expirar ou o pareamento falhar, o comando termina avisando, e a nova tentativa é sua, rodando `conectar` de novo. Rodar `conectar` outra vez descarta o código anterior (o Gerencial One só aceita um código por Print Server por vez). Ctrl+C só para de acompanhar: o serviço segue esperando a aprovação até o código expirar, e o código pode ser visto depois com `status`. Com uma impressora USB ligada no Linux, o código também sai impresso no papel, com um QR.
 
 No Gerencial One, um administrador abre **Configuração → Impressão**, informa o código e dá um nome à estação. Em seguida, cadastra as impressoras dessa estação. **Procurar impressoras** lista as encontradas no computador e na rede.
 
@@ -104,8 +104,23 @@ Opções gerais, valem para o programa e para qualquer comando: `--help` (`-h`) 
 | `logs` | Acompanha os logs (Ctrl+C sai) | no Windows, para ler os logs; no Linux, root ou o grupo `systemd-journal` | sim | sim |
 | `scan` | Procura impressoras acessíveis a esta máquina | não (no Linux, `sudo` ajuda a enxergar USB e serial) | sim | sim |
 | `doctor` | Diagnostica o ambiente e sugere correções | para ler a configuração | sim | não disponível |
+| `atualizar` | Atualiza o Print Server para a versão mais recente publicada | sim | sim | sim |
 
 Nota: existe também um comando interno e oculto, `aplicar-atualizacao`, chamado no Linux pela unit `gerencial-one-print-server-atualizar.service` (disparada pela `.path`) para aplicar uma atualização; não é de uso manual.
+
+#### `atualizar`
+
+Baixa o release mais recente, confere a assinatura do manifesto e o sha256 do executável e o instala como o instalador faz (troca o executável e reinicia o serviço, mantendo a credencial). Funciona também com a estação **não conectada**, quando a atualização automática não roda. Se já estiver na versão mais recente, só avisa.
+
+```sh
+sudo gerencial-one-ps atualizar
+```
+
+```powershell
+& $exe atualizar
+```
+
+Exige um binário de release (o de desenvolvimento não tem a chave de verificação e recusa).
 
 #### `run`
 
@@ -223,7 +238,7 @@ Rodar o instalador de novo é seguro: ele atualiza o executável e mantém a cre
 
 ## Atualização automática
 
-O Print Server se atualiza sozinho quando o Gerencial One libera uma versão nova. Ele baixa o manifesto da versão, confere a **assinatura ed25519** e o **sha256** do executável e só então faz a troca, sem interromper uma impressão em andamento. O serviço reinicia em seguida. No Linux, quem aplica é uma unit própria do systemd (`gerencial-one-print-server-atualizar.path`/`.service`), instalada pelo `install`. Se algo falhar, a versão atual continua funcionando e a atualização é tentada de novo mais tarde.
+O Print Server se atualiza sozinho quando o Gerencial One libera uma versão nova. Isso só vale com a estação **conectada**: uma estação ainda não pareada não se atualiza sozinha. Para atualizar manualmente, a qualquer momento, use `atualizar`. Ele baixa o manifesto da versão, confere a **assinatura ed25519** e o **sha256** do executável e só então faz a troca, sem interromper uma impressão em andamento. O serviço reinicia em seguida. No Linux, quem aplica é uma unit própria do systemd (`gerencial-one-print-server-atualizar.path`/`.service`), instalada pelo `install`. Se algo falhar, a versão atual continua funcionando e a atualização é tentada de novo mais tarde.
 
 Cada versão publica `manifesto.json` e `manifesto.json.sig`, além de um `.sha256` ao lado de cada executável. O Print Server só aceita manifestos assinados pela chave do Gerencial One, embutida no próprio executável.
 
